@@ -1,0 +1,90 @@
+#include <DHT.h>
+#include <LiquidCrystal.h>
+#include <SoftwareSerial.h>
+
+// DHT11 sensor
+#define DHTPIN 2     // Pin where the DHT11 is connected
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+// LCD setup
+const int rs = 7, en = 8, d4 = 9, d5 = 10, d6 = 11, d7 = 12;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+// PMS5003 setup
+SoftwareSerial pmsSerial(3, 4);  // RX, TX for PMS5003 sensor
+
+void setup() {
+  // Initialize DHT sensor
+  dht.begin();
+
+  // Initialize LCD
+  lcd.begin(16, 2);
+  lcd.print("Initializing...");
+
+  // Initialize serial communication for debugging
+  Serial.begin(9600);
+  
+  // Initialize PMS5003 sensor
+  pmsSerial.begin(9600);
+
+  lcd.clear();
+}
+
+void loop() {
+  // Reading temperature and humidity
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+
+  // Check if any reads failed and exit early (to try again)
+  if (isnan(h) || isnan(t)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+
+  // Read PMS5003 sensor data
+  if (pmsSerial.available() > 32) {
+    uint8_t buffer[32];
+    pmsSerial.readBytes(buffer, 32);
+
+    // Verify data frame
+    if (buffer[0] == 0x42 && buffer[1] == 0x4D) {
+      uint16_t pm25 = (buffer[10] << 8) | buffer[11];  // PM2.5 concentration
+      uint16_t pm10 = (buffer[14] << 8) | buffer[15];  // PM10 concentration
+
+      // Display data on LCD
+      lcd.setCursor(0, 0);
+      lcd.print("PM2.5: ");
+      lcd.print(pm25);
+      lcd.print(" ug/m3");
+
+      lcd.setCursor(0, 1);
+      lcd.print("PM10: ");
+      lcd.print(pm10);
+      lcd.print(" ug/m3");
+
+      Serial.print("PM2.5: ");
+      Serial.print(pm25);
+      Serial.println(" ug/m3");
+
+      Serial.print("PM10: ");
+      Serial.print(pm10);
+      Serial.println(" ug/m3");
+      
+      delay(1000);  // Wait for 1 second before the next reading
+    }
+  }
+
+  // Print temperature and humidity to LCD
+  lcd.setCursor(0, 0);
+  lcd.print("Temp: ");
+  lcd.print(t);
+  lcd.print(" C");
+
+  lcd.setCursor(0, 1);
+  lcd.print("Humidity: ");
+  lcd.print(h);
+  lcd.print(" %");
+
+  delay(2000);
+}
